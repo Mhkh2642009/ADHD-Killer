@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ADHD Killer</string>
+    <string name="device_admin_description">Optional. While this administrator is active, Android refuses to uninstall ADHD Killer — so a lockdown cannot be removed by uninstalling the app.</string>
+    <string name="accessibility_service_label">ADHD Killer — Guard</string>
+    <string name="accessibility_service_description">Keeps blocked apps out of the foreground during a focus window, and detects Reels, Shorts and TikTok style feeds and navigates away from them. Long-form video and the rest of your phone stay untouched.</string>
+</resources>

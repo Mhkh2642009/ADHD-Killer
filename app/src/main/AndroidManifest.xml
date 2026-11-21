@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Boot survival: the lockdown must come back after a reboot. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Exact alarms drive the start/end of every lockdown window. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
+    <!-- Emergency calls from the lockdown screen. -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+
+    <!-- Needed to enumerate the installed apps we may block. -->
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <application
+        android:name=".ADHDKillerApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.ADHDKiller">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.ADHDKiller"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            The guardian launcher. This app can become the device's HOME app, which is what makes
+            the lockdown survive a reboot without Device Owner: the system launches HOME at boot,
+            and the launcher shows the lockdown screen instead of an app drawer.
+
+            The user grants it through the system "choose home app" dialog and can revoke it in
+            the system settings at any time.
+        -->
+        <activity
+            android:name=".enforcement.lockdown.GuardianLauncherActivity"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:stateNotNeeded="true"
+            android:theme="@style/Theme.ADHDKiller">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            The lockdown screen. `lockTaskMode="always"` is what lets it enter the platform's own
+            screen-pinning mode when the user switches that layer on.
+        -->
+        <activity
+            android:name=".enforcement.lockdown.LockdownActivity"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:lockTaskMode="always"
+            android:noHistory="false"
+            android:showOnLockScreen="true"
+            android:stateNotNeeded="true"
+            android:theme="@style/Theme.ADHDKiller" />
+
+        <!--
+            Device administrator. This is *optional*: it only buys uninstall protection (Android
+            refuses to uninstall the app while the administrator is active). No Device Owner, no
+            package suspension, no persistent HOME preference — the enforcement lives in the
+            accessibility guard and the guardian launcher.
+        -->
+        <receiver
+            android:name=".enforcement.admin.LockdownDeviceAdminReceiver"
+            android:description="@string/device_admin_description"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+        </receiver>
+
+        <!--
+            The guard. This is an accessibility service because only it can tell a Reels feed
+            apart from the rest of an app, and because it is the only shippable way to keep a
+            blocked app out of the foreground without Device Owner. It is not an accessibility
+            tool: it is declared as such so the platform applies the strictest data rules to it.
+        -->
+        <service
+            android:name=".enforcement.guard.AppGuardService"
+            android:description="@string/accessibility_service_description"
+            android:exported="true"
+            android:label="@string/accessibility_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service" />
+        </service>
+
+        <!--
+            Boot and clock-change receiver. directBootAware lets it run before the first unlock,
+            which is what closes the "power off and reboot" bypass.
+        -->
+        <receiver
+            android:name=".enforcement.lockdown.BootReceiver"
+            android:directBootAware="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.USER_UNLOCKED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Fires at the start and end of every lockdown window. -->
+        <receiver
+            android:name=".enforcement.lockdown.LockdownAlarmReceiver"
+            android:exported="false" />
+
+    </application>
+
+</manifest>
